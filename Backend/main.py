@@ -10,7 +10,9 @@ from elevenlabs.client import ElevenLabs
 import firebase_admin
 from firebase_admin import credentials, firestore
 import uuid
-import json
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ============================================================
 # 1️⃣ Initialize FastAPI
@@ -20,32 +22,43 @@ app = FastAPI(title="Podcast Generator API")
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React app URL
+    allow_origins=["http://localhost:3000", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ============================================================
-# 2️⃣ Initialize Firebase Admin with your service account
+# 2️⃣ Initialize Firebase Admin
 # ============================================================
 try:
-    # Use your service account JSON file directly
-    service_account_info = {
-        "type": "service_account",
-        "project_id": "podcase-generator",
-        "private_key_id": "b8b4e6402db1ee173852efb850407eaaeb2320ee",
-        "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDCq9l6lajlHdxN\nbMxWhZ2A3axyHOSG9SKikQZE9HQZFrm2vTzuHZVQv2XqeqF7F4vb6st9/EY2L3DU\n+5SHEXgoOA1b+StfY01ah4l0MS4xUb39qx0x5y+fBE7HeMMyla/uLGKWWuhzKP9w\n5Ba/9ha1ZWvbZaaRYEWTri17x351ONdBLeC5f522zBknIG+4gheOim6kTJmPAjCn\nO3IIXnmh/Oa9AK7je3bGymjdhrtbKF+HpJaSKrdVjizHTZlYUy2yq3yCNtMJcKhC\nXjNL0xmpaVYhTbvxClOnlXi6FcbYzzjz9neoRtVkAysmbw0jAA7+kmr/R3+fwsnV\n028YITdDAgMBAAECggEAAuplxJI/CDhWDJHszm/TNEwBMy/jJhwVWAww5PVFNvve\nmDHXmqpEinW6gpfc7mXqxan9ecuT62fWfeTLKOnUgxlAQtwpLCNz8HhHpoYTYJeA\nKEvKrbP+RCbFCCyr9t3D9B7OgWtRzptLssh7T6J8JCPQEC1fIJ3USWMPjnF7kWHb\n2RrPPqugTWn0m0gbhcZ6suMCjAFXjQSFvgAeLxuqPjTc/7wxqzMgu4jwzw67WZm9\n3Xt4QGnZ5rlUrGi7BLwTg/GrWNhNo1FQ+rASiIze6eV7WCWJAZgeY5NYwxBs6TDJ\nJ9QqntCMqovIZRwcgf2VrQ7pJlTzM5vDccDIEYMXQQKBgQDyBNOKnDsWbqhCaTfU\nZIDoGxUOLsYrO64s7KbaTRoRZlp7uBKM2DJAQmIzIlXqjQxlHZpqZsd0e6PzZwVz\n7QrYFxnkgak/YRuLOynVzIGlmMzoor+HQ45qXUcg3BBWKurhvoh7igXt6UgdKaVx\n7YmmKEnq7f81dfSYeAWNy1mi0wKBgQDN6s748BCxNDF0H2GlGHs8qCkFJHiUMbGI\nx5l4lALaJ1m22JIxgMprM7LxoZPCZx+Je5m+5DBKweOK0Rt+d0i7m7kwpSD0I/CJ\nd15bIe32rP6EQLeE1CNp+oJNJ2BERIuw00B8ljYHEg67dFao3D3BdfpgcjhMkVs4\nNzQMZufz0QKBgEPTpHGhTVIBGzjZgiMNM69Y/7Kk2zb8l9jRTgW6PAcKV2t67//3\nC0ZFFH5eLhP5CbNA86jEOzvi9tTdV4LguPxMpR4MVKGFlpGTuCrKEL+XLj44dlLz\nVPNsRuXnptBvYLp5ioiM6xJ9IY/CvzJJrx0ZB3ZG0xJph24/nNbbWbivAoGAJAER\nbV90W7eXiglOpnJQYfu5KGgHGUpTE2prADVJBmHpAtp9PWCahAIHIM6yqkQjtIND\nD6iQdRHPul7zoroyonMI/2NwDqAWF8MiYWbeV8pJulAihnwdMROXIuxmnakqj6Fw\nXhhZnAThRI+D84SG28PIIoL2KxUjUQH9/Mkld3ECgYAzbhDB8/h+0ijHduy+j2tO\ndvWzrsb482R6hi3PB/zf1uRzuc4MV7LTGATHSNhi+ZTGRKTwlFsdd5uifb7BR6tx\n8d5wwVjsdsmBBkr7TPkzWdNtQXkeH0Pwj6ya78KkZn/PZoXiwgfbUa2Q4QlilMHa\nQGrO9KEKvt5jvZzUYK1oSw==\n-----END PRIVATE KEY-----\n",
-        "client_email": "firebase-adminsdk-fbsvc@podcase-generator.iam.gserviceaccount.com",
-        "client_id": "117615707402004887836",
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40podcase-generator.iam.gserviceaccount.com",
-        "universe_domain": "googleapis.com"
-    }
+    # Method 1: Try to load from service account file first
+    service_account_path = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
+    if service_account_path and os.path.exists(service_account_path):
+        cred = credentials.Certificate(service_account_path)
+        print("✅ Firebase initialized from service account file")
+    else:
+        # Method 2: Load from environment variables
+        service_account_info = {
+            "type": "service_account",
+            "project_id": os.getenv("FIREBASE_PROJECT_ID"),
+            "private_key_id": os.getenv("FIREBASE_PRIVATE_KEY_ID"),
+            "private_key": os.getenv("FIREBASE_PRIVATE_KEY", "").replace('\\n', '\n'),
+            "client_email": os.getenv("FIREBASE_CLIENT_EMAIL"),
+            "client_id": os.getenv("FIREBASE_CLIENT_ID"),
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": os.getenv("FIREBASE_CLIENT_CERT_URL"),
+            "universe_domain": "googleapis.com"
+        }
+        
+        if service_account_info["private_key"]:
+            cred = credentials.Certificate(service_account_info)
+            print("✅ Firebase initialized from environment variables")
+        else:
+            raise Exception("Firebase credentials not found")
     
-    cred = credentials.Certificate(service_account_info)
     firebase_admin.initialize_app(cred)
     db = firestore.client()
     print("✅ Firebase Admin initialized successfully!")
@@ -69,9 +82,14 @@ except Exception as e:
     print(f"❌ Error loading AI models: {e}")
     summarizer = None
 
-# Configure Gemini + ElevenLabs with direct API keys
-GEMINI_API_KEY = "AIzaSyD70N1RH5dtQlmnInvAXYqUUHm0VCa67Uw"  # Replace with your actual Gemini API key
-ELEVENLABS_API_KEY = "sk_592903a05e4f6665703df76298c2d787a70cc4f14a3bca13"  # Replace with your actual ElevenLabs API key
+# Configure Gemini + ElevenLabs
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+
+if not GEMINI_API_KEY:
+    raise Exception("GEMINI_API_KEY environment variable is required")
+if not ELEVENLABS_API_KEY:
+    raise Exception("ELEVENLABS_API_KEY environment variable is required")
 
 genai.configure(api_key=GEMINI_API_KEY)
 tts_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
@@ -188,17 +206,13 @@ def generate_tts_audio(script: str):
                 combined_audio.write(chunk)
     combined_audio.seek(0)
     
-    # Create audio directory if it doesn't exist
     os.makedirs("audio_outputs", exist_ok=True)
-    
     output_path = f"audio_outputs/podcast_{uuid.uuid4().hex[:8]}.mp3"
+    
     with open(output_path, "wb") as f:
         f.write(combined_audio.read())
     return output_path
 
-# ============================================================
-# 5️⃣ Store in Firestore Function
-# ============================================================
 def store_in_firestore(podcast_data: dict):
     if db is None:
         print("⚠️ Firebase not initialized, skipping Firestore storage")
@@ -219,29 +233,20 @@ def store_in_firestore(podcast_data: dict):
         return None
 
 # ============================================================
-# 6️⃣ Main Endpoint
+# 5️⃣ Main Endpoint
 # ============================================================
 @app.post("/upload_file/")
 async def upload_file(file: UploadFile = File(...)):
     try:
-        # Validate file type
         if not file.filename.endswith(('.pdf', '.txt')):
             raise HTTPException(status_code=400, detail="Only PDF and TXT files are allowed")
 
-        # Step 1: Extract + clean
         raw_content = extract_content(file)
         cleaned_text = clean_text(raw_content)
-
-        # Step 2: Summarize
         summary = summarize_text(cleaned_text)
-
-        # Step 3: Generate podcast script
         podcast_script = generate_podcast_script(summary)
-
-        # Step 4: Convert to speech
         audio_path = generate_tts_audio(podcast_script)
 
-        # Step 5: Prepare data for Firestore
         podcast_data = {
             "fileName": file.filename,
             "fileType": file.content_type,
@@ -251,10 +256,9 @@ async def upload_file(file: UploadFile = File(...)):
             "status": "completed"
         }
 
-        # Step 6: Store in Firestore
         podcast_id = store_in_firestore(podcast_data)
 
-        response_data = {
+        return {
             "id": podcast_id,
             "summary": summary,
             "podcast_script": podcast_script,
@@ -262,19 +266,15 @@ async def upload_file(file: UploadFile = File(...)):
             "message": "✅ Podcast generated successfully!"
         }
 
-        return response_data
-
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to process file: {str(e)}")
 
-# Health check endpoint
 @app.get("/")
 async def health_check():
     return {"status": "healthy", "message": "Podcast Generator API is running!"}
 
-# Get all podcasts endpoint
 @app.get("/podcasts/")
 async def get_podcasts():
     if db is None:
@@ -287,7 +287,6 @@ async def get_podcasts():
         podcasts = []
         for doc in docs:
             podcast_data = doc.to_dict()
-            # Convert Firestore timestamp to ISO string
             if 'createdAt' in podcast_data:
                 podcast_data['createdAt'] = podcast_data['createdAt'].isoformat()
             podcasts.append(podcast_data)
@@ -295,26 +294,6 @@ async def get_podcasts():
         return {"podcasts": podcasts}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching podcasts: {str(e)}")
-
-# Get single podcast by ID
-@app.get("/podcasts/{podcast_id}")
-async def get_podcast(podcast_id: str):
-    if db is None:
-        raise HTTPException(status_code=500, detail="Firebase not configured")
-    
-    try:
-        doc_ref = db.collection("podcasts").document(podcast_id)
-        doc = doc_ref.get()
-        
-        if doc.exists:
-            podcast_data = doc.to_dict()
-            if 'createdAt' in podcast_data:
-                podcast_data['createdAt'] = podcast_data['createdAt'].isoformat()
-            return podcast_data
-        else:
-            raise HTTPException(status_code=404, detail="Podcast not found")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching podcast: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
